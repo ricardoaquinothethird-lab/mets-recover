@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Mets Recover | Account Recovery Assistant</title>
+  <style>
+    :root { font-family: Arial, sans-serif; color:#182230; background:#f2f5f9; }
+    * { box-sizing:border-box; }
+    body { margin:0; padding:22px 14px; }
+    main { max-width:720px; margin:0 auto; }
+    header { background:#1769e0; color:white; padding:22px; border-radius:16px; }
+    header h1 { margin:0 0 7px; font-size:25px; }
+    header p { margin:0; opacity:.92; line-height:1.45; }
+    section { background:white; padding:18px; margin:15px 0; border-radius:13px; box-shadow:0 2px 10px #172b4d12; }
+    h2 { font-size:19px; margin:0 0 12px; }
+    p { line-height:1.5; }
+    label { display:block; margin:12px 0 5px; font-size:14px; font-weight:600; }
+    input, textarea, select { width:100%; padding:12px; border:1px solid #cbd5e1; border-radius:8px; font:inherit; background:white; }
+    textarea { min-height:115px; resize:vertical; }
+    button { width:100%; padding:12px 14px; margin-top:10px; border:0; border-radius:8px; background:#1769e0; color:white; font-weight:700; font-size:15px; }
+    button.secondary { background:#e8eef8; color:#17365f; }
+    .muted { color:#5b6675; font-size:13px; }
+    .status { padding:12px; border-radius:8px; background:#eef4ff; overflow-wrap:anywhere; }
+    .warning { background:#fff6e5; color:#704b00; padding:12px; border-radius:8px; }
+    pre { white-space:pre-wrap; overflow-wrap:anywhere; background:#f5f7fa; padding:12px; border-radius:8px; }
+    .check { display:flex; gap:9px; align-items:flex-start; font-weight:400; }
+    .check input { width:auto; margin-top:3px; }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Mets Recover</h1>
+    <p>Account Integrity Recovery Assistant · IT presentation demo</p>
+  </header>
+
+  <section>
+    <h2>1. Authorized Facebook Login</h2>
+    <p class="muted">Sign in only with an account you own or are authorized to test. This demo requests basic public profile access.</p>
+    <button id="loginBtn" type="button" onclick="facebookLogin()">Continue with Facebook</button>
+    <button class="secondary" type="button" onclick="getProfile()">Retrieve authorized profile</button>
+    <div id="loginStatus" class="status" aria-live="polite">Not connected.</div>
+    <div id="profileResult"></div>
+  </section>
+
+  <section>
+    <h2>2. Reported account status</h2>
+    <p class="muted">This section records what the account owner sees. It does not query Meta's private enforcement systems.</p>
+    <label for="accountName">Account name (optional)</label>
+    <input id="accountName" placeholder="Account name">
+    <label for="profileUrl">Profile URL (optional)</label>
+    <input id="profileUrl" type="url" placeholder="https://www.facebook.com/...">
+    <label for="reportedStatus">Status shown by Facebook</label>
+    <select id="reportedStatus">
+      <option>Permanent disablement</option>
+      <option>Temporary restriction</option>
+      <option>Security lock</option>
+      <option>Unknown / not sure</option>
+    </select>
+    <label for="notice">Exact message shown by Facebook</label>
+    <textarea id="notice" placeholder="Paste the notice text here. Do not include passwords, cookies, or access tokens."></textarea>
+    <button type="button" onclick="analyzeNotice()">Prepare case summary</button>
+    <div id="caseSummary" class="status" aria-live="polite">No case summary yet.</div>
+  </section>
+
+  <section>
+    <h2>3. Evidence checklist</h2>
+    <label class="check"><input type="checkbox"> I can access the original email or phone number.</label>
+    <label class="check"><input type="checkbox"> I have screenshots of the account and disablement notice.</label>
+    <label class="check"><input type="checkbox"> I have genuine proof of account ownership, if requested by Meta.</label>
+    <label class="check"><input type="checkbox"> I checked the official Facebook/Meta support options available to my account.</label>
+    <p id="evidenceCount" class="muted">0 of 4 items checked.</p>
+  </section>
+
+  <section>
+    <h2>4. Recovery request draft</h2>
+    <label for="reason">Why do you believe the decision should be reconsidered?</label>
+    <textarea id="reason" placeholder="Describe the situation truthfully and briefly."></textarea>
+    <button type="button" onclick="makeAppeal()">Generate draft</button>
+    <textarea id="appealDraft" placeholder="Your draft will appear here." readonly></textarea>
+    <button class="secondary" type="button" onclick="copyAppeal()">Copy draft</button>
+  </section>
+
+  <section>
+    <h2>5. Case report</h2>
+    <label for="progress">Case progress</label>
+    <select id="progress">
+      <option>Not started</option>
+      <option>Evidence collected</option>
+      <option>Request prepared</option>
+      <option>Submitted through an official Meta channel</option>
+      <option>Awaiting response</option>
+      <option>Resolved</option>
+      <option>Unsuccessful</option>
+    </select>
+    <button type="button" onclick="downloadReport()">Download case report</button>
+  </section>
+
+  <div class="warning">
+    <strong>Technical limitation:</strong> Facebook Login and the public Graph API can return profile fields authorized by the user. They do not expose a general endpoint for checking an account's internal disablement reason or forcing reinstatement. Never collect passwords, session cookies, or access tokens in this page. Use Meta's official support and appeal flows.
+  </div>
+  <p class="muted">Independent educational project. Not affiliated with or endorsed by Meta.</p>
+</main>
+
+<script>
+  // Replace these values with the settings from your own Meta Developer app.
+  const META_APP_ID = "YOUR_META_APP_ID";
+  // Use a Graph API version currently supported by your Meta app.
+  const GRAPH_API_VERSION = "YOUR_SUPPORTED_GRAPH_API_VERSION";
+
+  window.fbAsyncInit = function () {
+    FB.init({
+      appId: META_APP_ID,
+      cookie: true,
+      xfbml: false,
+      version: GRAPH_API_VERSION
+    });
+    document.getElementById("loginStatus").textContent =
+      "Facebook SDK loaded. Ready for authorized login.";
+  };
+
+  (function (d, s, id) {
+    if (d.getElementById(id)) return;
+    const js = d.createElement(s);
+    js.id = id;
+    js.src = "https://connect.facebook.net/en_US/sdk.js";
+    const first = d.getElementsByTagName(s)[0];
+    first.parentNode.insertBefore(js, first);
+  })(document, "script", "facebook-jssdk");
+
+  function facebookLogin() {
+    if (META_APP_ID === "YOUR_META_APP_ID" ||
+        GRAPH_API_VERSION === "YOUR_SUPPORTED_GRAPH_API_VERSION") {
+      document.getElementById("loginStatus").textContent =
+        "Setup needed: enter your Meta App ID and a supported Graph API version in index.html.";
+      return;
+    }
+    FB.login(function (response) {
+      if (response.authResponse) {
+        document.getElementById("loginStatus").textContent =
+          "Login authorized. You can now request permitted profile fields.";
+      } else {
+        document.getElementById("loginStatus").textContent =
+          "Login was cancelled or not authorized.";
+      }
+    }, { scope: "public_profile" });
+  }
+
+  function getProfile() {
+    FB.getLoginStatus(function (response) {
+      if (!response || response.status !== "connected") {
+        document.getElementById("loginStatus").textContent =
+          "No active authorized Facebook session. Sign in first.";
+        return;
+      }
+      FB.api("/me", { fields: "id,name,picture" }, function (profile) {
+        const target = document.getElementById("profileResult");
+        if (profile && !profile.error) {
+          target.innerHTML = "";
+          const pre = document.createElement("pre");
+          pre.textContent = JSON.stringify({
+            authorizedProfile: profile,
+            disablementStatus: "Not provided by this public API"
+          }, null, 2);
+          target.appendChild(pre);
+          document.getElementById("loginStatus").textContent =
+            "Authorized profile retrieved.";
+        } else {
+          document.getElementById("loginStatus").textContent =
+            "Profile request failed. Check app configuration and permissions.";
+          target.textContent = profile && profile.error
+            ? profile.error.message : "Unknown API error.";
+        }
+      });
+    });
+  }
+
+  function analyzeNotice() {
+    const status = document.getElementById("reportedStatus").value;
+    const notice = document.getElementById("notice").value.trim();
+    document.getElementById("caseSummary").textContent =
+      "Owner-reported status: " + status +
+      ". Notice supplied: " + (notice ? "Yes" : "No") +
+      ". This is a user-entered report, not a live Meta account-status check.";
+  }
+
+  function updateEvidenceCount() {
+    const boxes = [...document.querySelectorAll('input[type="checkbox"]')];
+    const count = boxes.filter(box => box.checked).length;
+    document.getElementById("evidenceCount").textContent =
+      count + " of " + boxes.length + " items checked.";
+  }
+  document.querySelectorAll('input[type="checkbox"]').forEach(box =>
+    box.addEventListener("change", updateEvidenceCount)
+  );
+
+  function makeAppeal() {
+    const name = document.getElementById("accountName").value.trim();
+    const url = document.getElementById("profileUrl").value.trim();
+    const status = document.getElementById("reportedStatus").value;
+    const reason = document.getElementById("reason").value.trim();
+    if (!reason) {
+      alert("Please describe your situation first.");
+      return;
+    }
+    document.getElementById("appealDraft").value =
+`Subject: Request for assistance with Facebook account
+
+Hello Meta Support Team,
+
+I am requesting assistance with my Facebook account.
+
+Account name: ${name || "Not provided"}
+Profile URL: ${url || "Not provided"}
+Status shown: ${status}
+
+My explanation:
+${reason}
+
+I respectfully ask whether any official review or support option remains available for this account. I can provide genuine proof of ownership through an official Meta process if required.
+
+Thank you for your time.`;
+  }
+
+  async function copyAppeal() {
+    const text = document.getElementById("appealDraft").value;
+    if (!text) return alert("Generate the draft first.");
+    try {
+      await navigator.clipboard.writeText(text);
+      alert("Draft copied.");
+    } catch {
+      document.getElementById("appealDraft").select();
+      alert("Select and copy the draft manually.");
+    }
+  }
+
+  function downloadReport() {
+    const checks = [...document.querySelectorAll('input[type="checkbox"]')];
+    const report =
+`METS RECOVER — CASE REPORT
+Generated: ${new Date().toISOString()}
+
+Account name: ${document.getElementById("accountName").value}
+Profile URL: ${document.getElementById("profileUrl").value}
+Owner-reported status: ${document.getElementById("reportedStatus").value}
+Facebook notice: ${document.getElementById("notice").value}
+Evidence checklist: ${checks.filter(x => x.checked).length}/${checks.length}
+Case progress: ${document.getElementById("progress").value}
+
+Note: This report records user-provided information. It does not verify internal Meta enforcement status.`;
+    const blob = new Blob([report], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "mets-recover-case-report.txt";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+</script>
+</body>
+</html>
