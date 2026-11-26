@@ -105,13 +105,13 @@
 
 <script>
   // Replace these values with the settings from your own Meta Developer app.
-  const META_APP_ID = "YOUR_META_APP_ID";
+  const META_APP_ID = "1728448845376330";
   // Use a Graph API version currently supported by your Meta app.
   const GRAPH_API_VERSION = "YOUR_SUPPORTED_GRAPH_API_VERSION";
 
   window.fbAsyncInit = function () {
     FB.init({
-      appId: META_APP_ID,
+      appId: 1728448845376330,
       cookie: true,
       xfbml: false,
       version: GRAPH_API_VERSION
@@ -130,7 +130,7 @@
   })(document, "script", "facebook-jssdk");
 
   function facebookLogin() {
-    if (META_APP_ID === "YOUR_META_APP_ID" ||
+    if (META_APP_ID === "1728448845376330" ||
         GRAPH_API_VERSION === "YOUR_SUPPORTED_GRAPH_API_VERSION") {
       document.getElementById("loginStatus").textContent =
         "Setup needed: enter your Meta App ID and a supported Graph API version in index.html.";
